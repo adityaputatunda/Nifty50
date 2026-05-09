@@ -13,3 +13,4 @@ Nifty50/
     ├── download_nifty50tri.py
     └── requirements.txt
 ```
+Co-Authored-By: Claude <noreply@anthropic.com>
