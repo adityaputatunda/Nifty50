@@ -226,6 +226,72 @@
   }
   .checkbox input { accent-color: var(--hyb); }
 
+  /* PERIOD (dual-thumb) */
+  .period-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .period-slider {
+    position: relative;
+    height: 18px;
+  }
+  .period-slider .track {
+    position: absolute;
+    top: 7px; left: 0;
+    width: 100%; height: 4px;
+    background: var(--line-2);
+    border-radius: 2px;
+  }
+  .period-slider .track-fill {
+    position: absolute;
+    top: 0; height: 100%;
+    background: var(--hyb);
+    border-radius: 2px;
+  }
+  .period-slider input[type=range] {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 18px;
+    background: transparent;
+    pointer-events: none;
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .period-slider input[type=range]::-webkit-slider-runnable-track {
+    background: transparent; height: 18px; border: none;
+  }
+  .period-slider input[type=range]::-moz-range-track {
+    background: transparent; height: 18px; border: none;
+  }
+  .period-slider input[type=range]::-webkit-slider-thumb {
+    pointer-events: auto;
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--line-2);
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+    margin-top: 0;
+    transition: transform 0.1s;
+  }
+  .period-slider input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  .period-slider input[type=range]::-moz-range-thumb {
+    pointer-events: auto;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--line-2);
+    cursor: pointer;
+  }
+
   /* RIGHT PANE */
   .pane {
     padding: 32px 48px;
@@ -361,6 +427,22 @@
 
 <main>
   <aside class="knobs">
+
+    <div class="knob-group">
+      <h3>Period</h3>
+      <div class="knob">
+        <div class="period-labels">
+          <span id="lbl-period-start">—</span>
+          <span id="lbl-period-end">—</span>
+        </div>
+        <div class="period-slider">
+          <div class="track"></div>
+          <div class="track-fill" id="period-fill"></div>
+          <input type="range" id="p-start" min="0" max="100" step="1" value="0">
+          <input type="range" id="p-end"   min="0" max="100" step="1" value="100">
+        </div>
+      </div>
+    </div>
 
     <div class="knob-group">
       <h3>Contribution</h3>
@@ -512,6 +594,36 @@ function normalize(rows) {
 // HELPERS
 // ============================================================
 function ymKey(d) { return d.getFullYear() * 12 + d.getMonth(); }
+
+function ymString(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtMonth(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  return `${MONTH_NAMES[m-1]} ${y}`;
+}
+
+let MONTHS = []; // sorted unique "YYYY-MM" strings present in DATA
+function buildMonths(data) {
+  const set = new Set();
+  for (const r of data) set.add(ymString(r.date));
+  return [...set].sort();
+}
+
+function filterByMonths(data, startYM, endYM) {
+  const out = [];
+  for (const r of data) {
+    const ym = ymString(r.date);
+    if (ym >= startYM && ym <= endYM) out.push({ ...r });
+  }
+  // recompute nextClose so the slice is self-contained (T+1 within slice; last → same close)
+  for (let i = 0; i < out.length; i++) {
+    out[i].nextClose = (i+1 < out.length) ? out[i+1].close : out[i].close;
+  }
+  return out;
+}
 
 function firstTradingDays(data) {
   const seen = new Set();
@@ -762,6 +874,8 @@ function readKnobs() {
     deployLeftover: document.getElementById('leftover').checked,
     sipAmt: monthly * splitPct / 100,
     dipAmt: monthly * (100 - splitPct) / 100,
+    periodStart: +document.getElementById('p-start').value,
+    periodEnd:   +document.getElementById('p-end').value,
   };
 }
 
@@ -948,16 +1062,62 @@ function debouncedRecompute() {
 }
 
 function recompute() {
-  if (!DATA) return;
+  if (!DATA || MONTHS.length === 0) return;
   const p = readKnobs();
   syncLabels(p);
-  const sip = strategySip(DATA, p);
-  const dip = strategyDip(DATA, p);
-  const hyb = strategyHybrid(DATA, p);
-  lastResults = { sip, dip, hyb };
-  const periodYears = (DATA[DATA.length-1].date - DATA[0].date) / MS_YR;
+  const startYM = MONTHS[p.periodStart];
+  const endYM   = MONTHS[p.periodEnd];
+  const data    = filterByMonths(DATA, startYM, endYM);
+  if (data.length < 20) return;
+  const sip = strategySip(data, p);
+  const dip = strategyDip(data, p);
+  const hyb = strategyHybrid(data, p);
+  lastResults = { sip, dip, hyb, data };
+  const periodYears = (data[data.length-1].date - data[0].date) / MS_YR;
   renderTable(sip, dip, hyb, periodYears);
-  renderChart(DATA, sip, dip, hyb);
+  renderChart(data, sip, dip, hyb);
+  updatePeriodMeta(data);
+}
+
+function updatePeriodMeta(data) {
+  const start = data[0].date.toISOString().slice(0,10);
+  const end   = data[data.length-1].date.toISOString().slice(0,10);
+  const yrs   = ((data[data.length-1].date - data[0].date) / MS_YR).toFixed(1);
+  document.getElementById('period-meta').textContent =
+    `${start} → ${end} · ${yrs} yr · ${data.length.toLocaleString()} sessions`;
+}
+
+function updatePeriodFill() {
+  const s = +document.getElementById('p-start').value;
+  const e = +document.getElementById('p-end').value;
+  const max = +document.getElementById('p-start').max;
+  const fill = document.getElementById('period-fill');
+  fill.style.left = `${(s/max)*100}%`;
+  fill.style.width = `${((e-s)/max)*100}%`;
+}
+
+function syncPeriodLabels() {
+  const s = +document.getElementById('p-start').value;
+  const e = +document.getElementById('p-end').value;
+  document.getElementById('lbl-period-start').textContent = fmtMonth(MONTHS[s]);
+  document.getElementById('lbl-period-end').textContent   = fmtMonth(MONTHS[e]);
+}
+
+function wirePeriod() {
+  const start = document.getElementById('p-start');
+  const end   = document.getElementById('p-end');
+  const MIN_SPAN = 12; // months — at least 1 year of contributions
+
+  const handler = (which) => () => {
+    let s = +start.value, e = +end.value;
+    if (which === 'start' && s > e - MIN_SPAN) start.value = Math.max(0, e - MIN_SPAN);
+    if (which === 'end'   && e < s + MIN_SPAN) end.value   = Math.min(+end.max, s + MIN_SPAN);
+    updatePeriodFill();
+    syncPeriodLabels();
+    debouncedRecompute();
+  };
+  start.addEventListener('input', handler('start'));
+  end.addEventListener('input', handler('end'));
 }
 
 function wire() {
@@ -967,16 +1127,17 @@ function wire() {
     el.addEventListener('input', debouncedRecompute);
     el.addEventListener('change', debouncedRecompute);
   });
+  wirePeriod();
   document.getElementById('theme-toggle').addEventListener('click', () => {
     const cur = document.documentElement.dataset.theme || 'light';
     const next = cur === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem('theme', next); } catch(e) {}
-    if (DATA && lastResults.sip) renderChart(DATA, lastResults.sip, lastResults.dip, lastResults.hyb);
+    if (lastResults.sip) renderChart(lastResults.data, lastResults.sip, lastResults.dip, lastResults.hyb);
   });
 }
 
-let lastResults = { sip: null, dip: null, hyb: null };
+let lastResults = { sip: null, dip: null, hyb: null, data: null };
 
 (function initTheme() {
   let saved = 'light';
@@ -988,14 +1149,18 @@ let lastResults = { sip: null, dip: null, hyb: null };
   try {
     const { data, source } = await loadData();
     DATA = data;
-    const start = data[0].date.toISOString().slice(0,10);
-    const end   = data[data.length-1].date.toISOString().slice(0,10);
-    const yrs   = ((data[data.length-1].date - data[0].date) / MS_YR).toFixed(1);
-    document.getElementById('period-meta').textContent =
-      `${start} → ${end} · ${yrs} yr · ${data.length.toLocaleString()} sessions`;
+    MONTHS = buildMonths(data);
+    // initialize period sliders to full range
+    const lastIdx = MONTHS.length - 1;
+    const pStart = document.getElementById('p-start');
+    const pEnd   = document.getElementById('p-end');
+    pStart.max = lastIdx; pStart.value = 0;
+    pEnd.max   = lastIdx; pEnd.value   = lastIdx;
     document.getElementById('status').style.display = 'none';
     document.getElementById('content').style.display = 'block';
     wire();
+    updatePeriodFill();
+    syncPeriodLabels();
     recompute();
   } catch (e) {
     const s = document.getElementById('status');
