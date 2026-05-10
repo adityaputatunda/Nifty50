@@ -385,14 +385,6 @@
         <input type="range" id="thresh" min="0.5" max="10" step="0.1" value="1.5">
       </div>
       <div class="knob">
-        <div class="knob-label"><span>Reference price</span></div>
-        <select id="refreset">
-          <option value="rolling_high">Rolling high (strict)</option>
-          <option value="after_buy">After last buy</option>
-          <option value="fixed">Fixed (initial)</option>
-        </select>
-      </div>
-      <div class="knob">
         <div class="knob-label"><span>Tranche per dip</span><span class="val" id="lbl-tranche">50%</span></div>
         <input type="range" id="tranche" min="10" max="100" step="5" value="50">
       </div>
@@ -764,7 +756,7 @@ function readKnobs() {
     stepup: +document.getElementById('stepup').value / 100,
     interest: +document.getElementById('interest').value / 100,
     thresh: +document.getElementById('thresh').value,
-    refReset: document.getElementById('refreset').value,
+    refReset: 'rolling_high',
     tranche: +document.getElementById('tranche').value / 100,
     maxDips: +document.getElementById('maxdips').value,
     deployLeftover: document.getElementById('leftover').checked,
@@ -969,7 +961,7 @@ function recompute() {
 }
 
 function wire() {
-  const ids = ['monthly','stepup','interest','thresh','refreset','tranche','maxdips','leftover','split'];
+  const ids = ['monthly','stepup','interest','thresh','tranche','maxdips','leftover','split'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener('input', debouncedRecompute);
