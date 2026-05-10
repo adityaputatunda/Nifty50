@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Buy the Dip vs SIP — Nifty 50 TRI</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Plotly + PapaParse via CDN -->
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root {
+    --bg:        #0d0d10;
+    --surface:   #15151a;
+    --surface-2: #1c1c22;
+    --line:      rgba(255,255,255,0.06);
+    --line-2:    rgba(255,255,255,0.12);
+    --ink:       #ece8df;
+    --ink-mute:  #8b857a;
+    --ink-dim:   #5a554d;
+    --sip:       #6ea8fe;
+    --dip:       #ff7a59;
+    --hyb:       #f5b961;
+    --gain:      #7dd181;
+    --loss:      #ef6b6b;
+    --serif:     'Fraunces', Georgia, serif;
+    --sans:      'IBM Plex Sans', system-ui, sans-serif;
+    --mono:      'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245,185,97,0.06), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(110,168,254,0.04), transparent 60%);
+  }
+
+  /* HEADER */
+  header {
+    padding: 48px 48px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(32px, 5vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+  }
+  h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--hyb);
+  }
+  .sub {
+    color: var(--ink-mute);
+    font-size: 15px;
+    max-width: 60ch;
+  }
+  .sub a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-dim); }
+
+  /* LAYOUT */
+  main {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 200px);
+  }
+  @media (max-width: 920px) {
+    main { grid-template-columns: 1fr; }
+    header { padding: 32px 20px 16px; }
+    .knobs { border-right: none !important; border-bottom: 1px solid var(--line); }
+  }
+
+  /* KNOBS */
+  .knobs {
+    padding: 32px 28px;
+    border-right: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .knob-group { margin-bottom: 28px; }
+  .knob-group h3 {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 0 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--line-2);
+  }
+  .knob {
+    margin-bottom: 18px;
+  }
+  .knob-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .knob-label span:first-child {
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .knob-label .val {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--hyb);
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--surface-2);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    cursor: pointer;
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--line-2);
+    transition: transform 0.1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    cursor: pointer;
+    border: 2px solid var(--surface);
+  }
+
+  select, input[type=number] {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    outline: none;
+  }
+  select:focus, input[type=number]:focus { border-color: var(--line-2); }
+
+  .checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .checkbox input { accent-color: var(--hyb); }
+
+  /* RIGHT PANE */
+  .pane {
+    padding: 32px 48px;
+    overflow-x: auto;
+  }
+  @media (max-width: 920px) { .pane { padding: 24px 20px; } }
+
+  /* RESULTS TABLE */
+  .results {
+    margin-bottom: 32px;
+  }
+  .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 16px;
+  }
+  .results-header h2 {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-mute);
+    letter-spacing: 0.04em;
+  }
+
+  table.cmp {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  table.cmp th {
+    text-align: right;
+    font-weight: 500;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line-2);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  table.cmp th:first-child {
+    text-align: left;
+    color: var(--ink-dim);
+  }
+  table.cmp th .strat-name {
+    display: block;
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  table.cmp th.sip .strat-name { color: var(--sip); }
+  table.cmp th.dip .strat-name { color: var(--dip); }
+  table.cmp th.hyb .strat-name { color: var(--hyb); }
+
+  table.cmp td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    text-align: right;
+  }
+  table.cmp td:first-child {
+    text-align: left;
+    color: var(--ink-mute);
+    font-family: var(--sans);
+    font-size: 12px;
+  }
+  table.cmp tr:hover td { background: rgba(255,255,255,0.02); }
+  table.cmp .pos { color: var(--gain); }
+  table.cmp .neg { color: var(--loss); }
+  table.cmp .big {
+    font-size: 15px;
+    color: var(--ink);
+  }
+
+  /* CHART */
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  #plot { width: 100%; height: 520px; }
+
+  /* LOADING / ERROR */
+  .status {
+    padding: 80px 32px;
+    text-align: center;
+    color: var(--ink-mute);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .status.error { color: var(--loss); }
+
+  /* FOOTER */
+  footer {
+    padding: 32px 48px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-mute);
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  footer a { color: var(--ink); }
+  @media (max-width: 920px) { footer { padding: 24px 20px; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Backtest · 2000 → 2026</div>
+  <h1>Buy the dip <em>vs</em> just keep buying.</h1>
+  <p class="sub">
+    Three strategies on Nifty 50 TRI: a vanilla monthly SIP, a wait-for-dips pool,
+    and a hybrid that splits the contribution. Drag the knobs.
+  </p>
+</header>
+
+<main>
+  <aside class="knobs">
+
+    <div class="knob-group">
+      <h3>Contribution</h3>
+      <div class="knob">
+        <div class="knob-label"><span>Monthly amount</span><span class="val" id="lbl-monthly">₹10,000</span></div>
+        <input type="range" id="monthly" min="1000" max="100000" step="500" value="10000">
+      </div>
+      <div class="knob">
+        <div class="knob-label"><span>Annual step-up</span><span class="val" id="lbl-stepup">5%</span></div>
+        <input type="range" id="stepup" min="0" max="20" step="1" value="5">
+      </div>
+      <div class="knob">
+        <div class="knob-label"><span>Idle cash interest</span><span class="val" id="lbl-interest">5%</span></div>
+        <input type="range" id="interest" min="0" max="10" step="0.5" value="5">
+      </div>
+    </div>
+
+    <div class="knob-group">
+      <h3>Dip rules</h3>
+      <div class="knob">
+        <div class="knob-label"><span>Dip threshold</span><span class="val" id="lbl-thresh">1.5%</span></div>
+        <input type="range" id="thresh" min="0.5" max="10" step="0.1" value="1.5">
+      </div>
+      <div class="knob">
+        <div class="knob-label"><span>Reference price</span></div>
+        <select id="refreset">
+          <option value="rolling_high">Rolling high (strict)</option>
+          <option value="after_buy">After last buy</option>
+          <option value="fixed">Fixed (initial)</option>
+        </select>
+      </div>
+      <div class="knob">
+        <div class="knob-label"><span>Tranche per dip</span><span class="val" id="lbl-tranche">50%</span></div>
+        <input type="range" id="tranche" min="10" max="100" step="5" value="50">
+      </div>
+      <div class="knob">
+        <div class="knob-label"><span>Max dips / month</span><span class="val" id="lbl-maxdips">2</span></div>
+        <input type="range" id="maxdips" min="1" max="10" step="1" value="2">
+      </div>
+      <div class="knob">
+        <label class="checkbox">
+          <input type="checkbox" id="leftover" checked>
+          <span>Deploy leftover at end</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="knob-group">
+      <h3>Hybrid split</h3>
+      <div class="knob">
+        <div class="knob-label"><span>SIP slice</span><span class="val" id="lbl-split">75%</span></div>
+        <input type="range" id="split" min="0" max="100" step="5" value="75">
+      </div>
+    </div>
+
+  </aside>
+
+  <section class="pane">
+    <div id="status" class="status">Loading market data…</div>
+
+    <div id="content" style="display:none;">
+      <div class="results">
+        <div class="results-header">
+          <h2>Strategy comparison</h2>
+          <div class="meta" id="period-meta"></div>
+        </div>
+        <table class="cmp">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="sip"><span class="strat-name">SIP</span>monthly, no timing</th>
+              <th class="dip"><span class="strat-name">Buy-the-Dip</span>pool, deploy on drops</th>
+              <th class="hyb"><span class="strat-name">Hybrid</span>split: SIP + dip pool</th>
+            </tr>
+          </thead>
+          <tbody id="cmp-body"></tbody>
+        </table>
+      </div>
+
+      <div class="chart-wrap">
+        <div id="plot"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Backtest is based on closing prices — actual mutual-fund returns may differ.
+  Idle cash earns the configured rate (post-tax assumption is on you).
+  Source: <a href="https://github.com/adityaputatunda/Nifty50">github.com/adityaputatunda/Nifty50</a>
+</footer>
+
+<script>
+// ============================================================
+// CSV LOADING (auto-detect TRI vs price columns)
+// ============================================================
+const CSV_CANDIDATES = [
+  'data/nifty50tri_2000_2026.csv',
+  'nifty50tri_2000_2026.csv',
+  'data/nifty50_2000_2026.csv',
+  'nifty50_2000_2026.csv',
+];
+
+const DATE_KEYS  = ['Date', 'HistoricalDate', 'date'];
+const PRICE_KEYS = ['TotalReturnsIndex', 'TotalReturn', 'CLOSE', 'Close', 'close'];
+
+async function loadData() {
+  let lastErr;
+  for (const url of CSV_CANDIDATES) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) { lastErr = new Error(`HTTP ${res.status} on ${url}`); continue; }
+      const text = await res.text();
+      const parsed = Papa.parse(text, { header: true, dynamicTyping: false, skipEmptyLines: true });
+      if (parsed.errors.length && parsed.data.length === 0) { lastErr = new Error('parse failed'); continue; }
+      const data = normalize(parsed.data);
+      if (data.length === 0) { lastErr = new Error(`no usable rows in ${url}`); continue; }
+      return { data, source: url };
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('no CSV found');
+}
+
+function normalize(rows) {
+  if (!rows.length) return [];
+  const cols = Object.keys(rows[0]);
+  const dateKey  = DATE_KEYS.find(k => cols.includes(k));
+  const priceKey = PRICE_KEYS.find(k => cols.includes(k));
+  if (!dateKey || !priceKey) throw new Error(`columns not found. got: ${cols.join(', ')}`);
+
+  const out = [];
+  for (const r of rows) {
+    const ds = r[dateKey];
+    const ps = r[priceKey];
+    if (!ds || ps === '' || ps == null) continue;
+    const d = new Date(ds);
+    const p = parseFloat(ps);
+    if (isNaN(d.getTime()) || isNaN(p)) continue;
+    out.push({ date: d, close: p });
+  }
+  out.sort((a, b) => a.date - b.date);
+  // dedupe by date (keep last)
+  const dedup = [];
+  let prevTime = -1;
+  for (const r of out) {
+    if (r.date.getTime() === prevTime) dedup[dedup.length - 1] = r;
+    else { dedup.push(r); prevTime = r.date.getTime(); }
+  }
+  // attach next_close (T+1 buy price)
+  for (let i = 0; i < dedup.length; i++) {
+    dedup[i].nextClose = (i + 1 < dedup.length) ? dedup[i + 1].close : dedup[i].close;
+  }
+  return dedup;
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function ymKey(d) { return d.getFullYear() * 12 + d.getMonth(); }
+
+function firstTradingDays(data) {
+  const seen = new Set();
+  const set  = new Set();
+  for (const r of data) {
+    const k = ymKey(r.date);
+    if (!seen.has(k)) { seen.add(k); set.add(r.date.getTime()); }
+  }
+  return set;
+}
+
+function stepFactor(idx, stepUpPct) {
+  return Math.pow(1 + stepUpPct, Math.floor(idx / 12));
+}
+
+const MS_YR = 1000 * 86400 * 365.25;
+
+function xirr(cashflows) {
+  if (cashflows.length < 2) return null;
+  const t0 = Math.min(...cashflows.map(cf => cf[0].getTime()));
+  const yrs = cashflows.map(cf => (cf[0].getTime() - t0) / MS_YR);
+  const amt = cashflows.map(cf => cf[1]);
+  const npv = (r) => {
+    let s = 0;
+    for (let i = 0; i < amt.length; i++) s += amt[i] / Math.pow(1 + r, yrs[i]);
+    return s;
+  };
+  let lo = -0.9999, hi = 50;
+  let fLo = npv(lo), fHi = npv(hi);
+  if (fLo * fHi > 0) return null;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    const fMid = npv(mid);
+    if (Math.abs(fMid) < 1e-9 || (hi - lo) < 1e-10) return mid;
+    if (fLo * fMid < 0) { hi = mid; fHi = fMid; }
+    else { lo = mid; fLo = fMid; }
+  }
+  return (lo + hi) / 2;
+}
+
+function indianFmt(n) {
+  const neg = n < 0; n = Math.abs(Math.round(n));
+  const s = String(n);
+  let formatted;
+  if (s.length <= 3) formatted = s;
+  else {
+    const last3 = s.slice(-3);
+    let rest = s.slice(0, -3);
+    const groups = [];
+    while (rest.length) {
+      groups.push(rest.length >= 2 ? rest.slice(-2) : rest);
+      rest = rest.slice(0, -2);
+    }
+    formatted = groups.reverse().join(',') + ',' + last3;
+  }
+  return (neg ? '-' : '') + '₹' + formatted;
+}
+
+// ============================================================
+// STRATEGIES
+// ============================================================
+function strategySip(data, p) {
+  const contribSet = firstTradingDays(data);
+  let units = 0, invested = 0;
+  const cashflows = [], buyDates = [];
+  let contribIdx = 0;
+  for (const row of data) {
+    if (contribSet.has(row.date.getTime())) {
+      const amount = p.monthly * stepFactor(contribIdx, p.stepup);
+      const price = row.nextClose;
+      units += amount / price;
+      invested += amount;
+      cashflows.push([row.date, -amount]);
+      buyDates.push(row.date);
+      contribIdx++;
+    }
+  }
+  const last = data[data.length - 1];
+  const finalValue = units * last.close;
+  cashflows.push([last.date, finalValue]);
+  return { units, invested, finalValue, cashflows, buyDates, buys: buyDates.length, cashIdle: 0, interestEarned: 0 };
+}
+
+function strategyDip(data, p) {
+  const contribSet = firstTradingDays(data);
+  let cashPool = 0, units = 0, invested = 0, interestEarned = 0;
+  const cashflows = [], buyDates = [];
+  let buyCount = 0;
+  let refPrice = data[0].close;
+  let prevEvent = null;
+  let curMonth = -1, dipsThisMonth = 0;
+  let contribIdx = 0;
+
+  const accrue = (today) => {
+    if (prevEvent !== null && cashPool > 0 && p.interest > 0) {
+      const yrs = (today.getTime() - prevEvent.getTime()) / MS_YR;
+      if (yrs > 0) {
+        const growth = Math.pow(1 + p.interest, yrs);
+        interestEarned += cashPool * (growth - 1);
+        cashPool *= growth;
+      }
+    }
+    prevEvent = today;
+  };
+
+  for (const row of data) {
+    const date = row.date, closeP = row.close, buyP = row.nextClose;
+    const ym = ymKey(date);
+    if (ym !== curMonth) { curMonth = ym; dipsThisMonth = 0; }
+
+    if (contribSet.has(date.getTime())) {
+      accrue(date);
+      const amount = p.monthly * stepFactor(contribIdx, p.stepup);
+      cashPool += amount;
+      invested += amount;
+      cashflows.push([date, -amount]);
+      prevEvent = date;
+      contribIdx++;
+    }
+
+    if (p.refReset === 'rolling_high') refPrice = Math.max(refPrice, closeP);
+
+    if (dipsThisMonth < p.maxDips) {
+      const dropPct = (refPrice - closeP) / refPrice * 100;
+      if (dropPct >= p.thresh && cashPool > 0) {
+        accrue(date);
+        const deploy = cashPool * p.tranche;
+        units += deploy / buyP;
+        cashPool -= deploy;
+        buyCount++;
+        dipsThisMonth++;
+        buyDates.push(date);
+        prevEvent = date;
+        if (p.refReset === 'after_buy' || p.refReset === 'rolling_high') refPrice = closeP;
+      }
+    }
+  }
+
+  const last = data[data.length - 1];
+  accrue(last.date);
+  if (cashPool > 0 && p.deployLeftover) {
+    units += cashPool / last.close;
+    buyDates.push(last.date);
+    cashPool = 0;
+  }
+  const finalValue = units * last.close + cashPool;
+  cashflows.push([last.date, finalValue]);
+  return { units, invested, finalValue, cashflows, buyDates, buys: buyCount, cashIdle: cashPool, interestEarned };
+}
+
+function strategyHybrid(data, p) {
+  const contribSet = firstTradingDays(data);
+  let cashPool = 0, units = 0, invested = 0, interestEarned = 0;
+  const cashflows = [];
+  const sipDates = [], dipDates = [];
+  let dipBuyCount = 0;
+  let refPrice = data[0].close;
+  let prevEvent = null;
+  let curMonth = -1, dipsThisMonth = 0;
+  let contribIdx = 0;
+
+  const accrue = (today) => {
+    if (prevEvent !== null && cashPool > 0 && p.interest > 0) {
+      const yrs = (today.getTime() - prevEvent.getTime()) / MS_YR;
+      if (yrs > 0) {
+        const growth = Math.pow(1 + p.interest, yrs);
+        interestEarned += cashPool * (growth - 1);
+        cashPool *= growth;
+      }
+    }
+    prevEvent = today;
+  };
+
+  for (const row of data) {
+    const date = row.date, closeP = row.close, buyP = row.nextClose;
+    const ym = ymKey(date);
+    if (ym !== curMonth) { curMonth = ym; dipsThisMonth = 0; }
+
+    if (contribSet.has(date.getTime())) {
+      accrue(date);
+      const sf = stepFactor(contribIdx, p.stepup);
+      const sipNow = p.sipAmt * sf;
+      const dipNow = p.dipAmt * sf;
+      if (sipNow > 0) {
+        units += sipNow / buyP;
+        sipDates.push(date);
+      }
+      cashPool += dipNow;
+      invested += sipNow + dipNow;
+      cashflows.push([date, -(sipNow + dipNow)]);
+      prevEvent = date;
+      contribIdx++;
+    }
+
+    if (p.refReset === 'rolling_high') refPrice = Math.max(refPrice, closeP);
+
+    if (dipsThisMonth < p.maxDips) {
+      const dropPct = (refPrice - closeP) / refPrice * 100;
+      if (dropPct >= p.thresh && cashPool > 0) {
+        accrue(date);
+        const deploy = cashPool * p.tranche;
+        units += deploy / buyP;
+        cashPool -= deploy;
+        dipBuyCount++;
+        dipsThisMonth++;
+        dipDates.push(date);
+        prevEvent = date;
+        if (p.refReset === 'after_buy' || p.refReset === 'rolling_high') refPrice = closeP;
+      }
+    }
+  }
+
+  const last = data[data.length - 1];
+  accrue(last.date);
+  if (cashPool > 0 && p.deployLeftover) {
+    units += cashPool / last.close;
+    dipDates.push(last.date);
+    cashPool = 0;
+  }
+  const finalValue = units * last.close + cashPool;
+  cashflows.push([last.date, finalValue]);
+  return {
+    units, invested, finalValue, cashflows,
+    buyDates: sipDates.concat(dipDates),
+    sipDates, dipDates,
+    buys: sipDates.length + dipBuyCount,
+    sipBuys: sipDates.length, dipBuys: dipBuyCount,
+    cashIdle: cashPool, interestEarned
+  };
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+let DATA = null;
+
+function readKnobs() {
+  const monthly = +document.getElementById('monthly').value;
+  const splitPct = +document.getElementById('split').value;
+  return {
+    monthly,
+    stepup: +document.getElementById('stepup').value / 100,
+    interest: +document.getElementById('interest').value / 100,
+    thresh: +document.getElementById('thresh').value,
+    refReset: document.getElementById('refreset').value,
+    tranche: +document.getElementById('tranche').value / 100,
+    maxDips: +document.getElementById('maxdips').value,
+    deployLeftover: document.getElementById('leftover').checked,
+    sipAmt: monthly * splitPct / 100,
+    dipAmt: monthly * (100 - splitPct) / 100,
+  };
+}
+
+function syncLabels(p) {
+  document.getElementById('lbl-monthly').textContent  = indianFmt(p.monthly);
+  document.getElementById('lbl-stepup').textContent   = `${(p.stepup*100).toFixed(0)}%`;
+  document.getElementById('lbl-interest').textContent = `${(p.interest*100).toFixed(1)}%`;
+  document.getElementById('lbl-thresh').textContent   = `${p.thresh.toFixed(1)}%`;
+  document.getElementById('lbl-tranche').textContent  = `${(p.tranche*100).toFixed(0)}%`;
+  document.getElementById('lbl-maxdips').textContent  = `${p.maxDips}`;
+  const splitPct = +document.getElementById('split').value;
+  document.getElementById('lbl-split').textContent    = `${splitPct}% / ${100-splitPct}%`;
+}
+
+function renderTable(sip, dip, hyb, periodYears) {
+  const fmtPct = (n, dp = 2) => isFinite(n) ? `${n.toFixed(dp)}%` : '—';
+  const fmtCagr = (r) => {
+    const v = (Math.pow(r.finalValue / r.invested, 1 / periodYears) - 1) * 100;
+    return fmtPct(v);
+  };
+  const fmtXirr = (r) => {
+    const x = xirr(r.cashflows);
+    return x == null ? '—' : fmtPct(x * 100);
+  };
+  const fmtGain = (r) => {
+    const g = r.finalValue - r.invested;
+    const pct = (r.finalValue / r.invested - 1) * 100;
+    const cls = g >= 0 ? 'pos' : 'neg';
+    return `<span class="${cls}">${indianFmt(g)} <small>(${pct.toFixed(0)}%)</small></span>`;
+  };
+
+  const rows = [
+    ['Buys',          [sip, dip, hyb].map(r => r === hyb ? `${r.buys} <small>(${r.sipBuys}+${r.dipBuys})</small>` : r.buys)],
+    ['Invested',      [sip, dip, hyb].map(r => indianFmt(r.invested))],
+    ['Final value',   [sip, dip, hyb].map(r => `<span class="big">${indianFmt(r.finalValue)}</span>`)],
+    ['Absolute gain', [sip, dip, hyb].map(fmtGain)],
+    ['CAGR',          [sip, dip, hyb].map(fmtCagr)],
+    ['XIRR',          [sip, dip, hyb].map(fmtXirr)],
+  ];
+
+  const idleRow = [
+    [sip, dip, hyb].map(r => r.interestEarned > 0 ? indianFmt(r.interestEarned) : '—'),
+  ];
+  rows.push(['Interest on idle cash', idleRow[0]]);
+
+  document.getElementById('cmp-body').innerHTML = rows.map(([label, vals]) => `
+    <tr>
+      <td>${label}</td>
+      <td>${vals[0]}</td>
+      <td>${vals[1]}</td>
+      <td>${vals[2]}</td>
+    </tr>
+  `).join('');
+}
+
+function renderChart(data, sip, dip, hyb) {
+  const xLine = data.map(r => r.date);
+  const yLine = data.map(r => r.close);
+
+  const buyY = (dates) => dates.map(d => {
+    // find closest data point — dates are already actual data point dates
+    const t = d.getTime();
+    // simple linear search; data is small enough
+    for (let i = 0; i < data.length; i++) {
+      if (data[i].date.getTime() === t) return data[i].close;
+    }
+    return null;
+  });
+
+  const traces = [
+    {
+      x: xLine, y: yLine, type: 'scatter', mode: 'lines',
+      name: 'Nifty 50 TRI',
+      line: { color: 'rgba(236,232,223,0.85)', width: 1.2 },
+      hovertemplate: '<b>%{x|%b %Y}</b><br>%{y:,.0f}<extra></extra>',
+    },
+    {
+      x: sip.buyDates, y: buyY(sip.buyDates), type: 'scatter', mode: 'markers',
+      name: `SIP buys (${sip.buyDates.length})`,
+      marker: { color: 'rgba(110,168,254,0.85)', size: 5, symbol: 'circle' },
+      hovertemplate: 'SIP · %{x|%d %b %Y}<extra></extra>',
+    },
+    {
+      x: dip.buyDates, y: buyY(dip.buyDates), type: 'scatter', mode: 'markers',
+      name: `Dip buys (${dip.buyDates.length})`,
+      marker: { color: 'rgba(255,122,89,0.9)', size: 6, symbol: 'diamond' },
+      hovertemplate: 'Dip · %{x|%d %b %Y}<extra></extra>',
+    },
+    {
+      x: hyb.dipDates, y: buyY(hyb.dipDates), type: 'scatter', mode: 'markers',
+      name: `Hybrid dip buys (${hyb.dipBuys})`,
+      marker: { color: 'rgba(245,185,97,0.95)', size: 7, symbol: 'triangle-up' },
+      hovertemplate: 'Hybrid-dip · %{x|%d %b %Y}<extra></extra>',
+      visible: 'legendonly',
+    },
+  ];
+
+  const layout = {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor:  'rgba(0,0,0,0)',
+    font: { color: '#ece8df', family: 'IBM Plex Mono, monospace', size: 11 },
+    margin: { l: 60, r: 20, t: 20, b: 50 },
+    xaxis: {
+      gridcolor: 'rgba(255,255,255,0.04)', linecolor: 'rgba(255,255,255,0.15)',
+      tickcolor: 'rgba(255,255,255,0.15)', zeroline: false,
+    },
+    yaxis: {
+      type: 'log',
+      gridcolor: 'rgba(255,255,255,0.04)', linecolor: 'rgba(255,255,255,0.15)',
+      tickcolor: 'rgba(255,255,255,0.15)', zeroline: false,
+      title: { text: 'Nifty 50 TRI (log)', font: { size: 11, color: '#8b857a' } },
+    },
+    legend: {
+      orientation: 'h', y: -0.18, x: 0,
+      bgcolor: 'rgba(0,0,0,0)', font: { size: 11 },
+    },
+    hoverlabel: {
+      bgcolor: '#1c1c22', bordercolor: 'rgba(255,255,255,0.15)',
+      font: { family: 'IBM Plex Mono, monospace', color: '#ece8df' },
+    },
+  };
+
+  Plotly.react('plot', traces, layout, { displaylogo: false, responsive: true });
+}
+
+// ============================================================
+// WIRING
+// ============================================================
+let recomputeTimer = null;
+function debouncedRecompute() {
+  clearTimeout(recomputeTimer);
+  recomputeTimer = setTimeout(recompute, 30);
+}
+
+function recompute() {
+  if (!DATA) return;
+  const p = readKnobs();
+  syncLabels(p);
+  const sip = strategySip(DATA, p);
+  const dip = strategyDip(DATA, p);
+  const hyb = strategyHybrid(DATA, p);
+  const periodYears = (DATA[DATA.length-1].date - DATA[0].date) / MS_YR;
+  renderTable(sip, dip, hyb, periodYears);
+  renderChart(DATA, sip, dip, hyb);
+}
+
+function wire() {
+  const ids = ['monthly','stepup','interest','thresh','refreset','tranche','maxdips','leftover','split'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', debouncedRecompute);
+    el.addEventListener('change', debouncedRecompute);
+  });
+}
+
+(async () => {
+  try {
+    const { data, source } = await loadData();
+    DATA = data;
+    const start = data[0].date.toISOString().slice(0,10);
+    const end   = data[data.length-1].date.toISOString().slice(0,10);
+    const yrs   = ((data[data.length-1].date - data[0].date) / MS_YR).toFixed(1);
+    document.getElementById('period-meta').textContent =
+      `${start} → ${end} · ${yrs} yr · ${data.length.toLocaleString()} sessions`;
+    document.getElementById('status').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    wire();
+    recompute();
+  } catch (e) {
+    const s = document.getElementById('status');
+    s.classList.add('error');
+    s.innerHTML = `Failed to load data: ${e.message}<br><br>
+      Make sure <code>data/nifty50tri_2000_2026.csv</code> is in the same repo and Pages is serving from the repo root.`;
+  }
+})();
+</script>
+</body>
+</html>
