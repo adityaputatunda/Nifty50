@@ -15,7 +15,29 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
+  /* Light is default */
   :root {
+    --bg:        #fbfaf6;
+    --surface:   #ffffff;
+    --surface-2: #f4f1ea;
+    --line:      rgba(0,0,0,0.07);
+    --line-2:    rgba(0,0,0,0.15);
+    --ink:       #1c1c1f;
+    --ink-mute:  #6e6a64;
+    --ink-dim:   #a8a39c;
+    --sip:       #2563eb;
+    --dip:       #ea580c;
+    --hyb:       #b45309;
+    --gain:      #15803d;
+    --loss:      #b91c1c;
+    --serif:     'Fraunces', Georgia, serif;
+    --sans:      'IBM Plex Sans', system-ui, sans-serif;
+    --mono:      'IBM Plex Mono', ui-monospace, monospace;
+    --bg-grad-1: rgba(180,83,9,0.04);
+    --bg-grad-2: rgba(37,99,235,0.03);
+  }
+
+  [data-theme="dark"] {
     --bg:        #0d0d10;
     --surface:   #15151a;
     --surface-2: #1c1c22;
@@ -29,9 +51,8 @@
     --hyb:       #f5b961;
     --gain:      #7dd181;
     --loss:      #ef6b6b;
-    --serif:     'Fraunces', Georgia, serif;
-    --sans:      'IBM Plex Sans', system-ui, sans-serif;
-    --mono:      'IBM Plex Mono', ui-monospace, monospace;
+    --bg-grad-1: rgba(245,185,97,0.06);
+    --bg-grad-2: rgba(110,168,254,0.04);
   }
 
   * { box-sizing: border-box; }
@@ -44,15 +65,38 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245,185,97,0.06), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(110,168,254,0.04), transparent 60%);
+      radial-gradient(ellipse 80% 50% at 50% -20%, var(--bg-grad-1), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, var(--bg-grad-2), transparent 60%);
+    transition: background-color 0.2s, color 0.2s;
   }
 
   /* HEADER */
   header {
     padding: 48px 48px 24px;
     border-bottom: 1px solid var(--line);
+    position: relative;
   }
+  .theme-toggle {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--line-2);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .theme-toggle:hover { background: var(--surface-2); transform: scale(1.05); }
+  .theme-toggle svg { width: 16px; height: 16px; }
+  [data-theme="dark"] .icon-moon { display: none; }
+  :root:not([data-theme="dark"]) .icon-sun { display: none; }
+
   .eyebrow {
     font-family: var(--mono);
     font-size: 11px;
@@ -68,6 +112,8 @@
     line-height: 1.05;
     letter-spacing: -0.02em;
     margin: 0 0 8px;
+    font-variation-settings: "opsz" 48;
+    font-optical-sizing: none;
   }
   h1 em {
     font-style: italic;
@@ -135,7 +181,7 @@
     -webkit-appearance: none;
     width: 100%;
     height: 4px;
-    background: var(--surface-2);
+    background: var(--line-2);
     border-radius: 2px;
     outline: none;
   }
@@ -256,12 +302,21 @@
     font-family: var(--sans);
     font-size: 12px;
   }
-  table.cmp tr:hover td { background: rgba(255,255,255,0.02); }
+  table.cmp tr:hover td { background: rgba(127,127,127,0.04); }
   table.cmp .pos { color: var(--gain); }
   table.cmp .neg { color: var(--loss); }
   table.cmp .big {
     font-size: 15px;
     color: var(--ink);
+  }
+  table.cmp tr.delta-row td {
+    border-top: 1px solid var(--line-2);
+    color: var(--ink-mute);
+    font-size: 12px;
+  }
+  table.cmp tr.delta-row td:first-child {
+    color: var(--ink-dim);
+    font-style: italic;
   }
 
   /* CHART */
@@ -298,6 +353,10 @@
 <body>
 
 <header>
+  <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
   <div class="eyebrow">Backtest · 2000 → 2026</div>
   <h1>Buy the dip <em>vs</em> just keep buying.</h1>
   <p class="sub">
@@ -737,15 +796,39 @@ function renderTable(sip, dip, hyb, periodYears) {
     const v = (Math.pow(r.finalValue / r.invested, 1 / periodYears) - 1) * 100;
     return fmtPct(v);
   };
-  const fmtXirr = (r) => {
+  const xirrPct = (r) => {
     const x = xirr(r.cashflows);
-    return x == null ? '—' : fmtPct(x * 100);
+    return x == null ? null : x * 100;
+  };
+  const fmtXirr = (r) => {
+    const v = xirrPct(r);
+    return v == null ? '—' : fmtPct(v);
   };
   const fmtGain = (r) => {
     const g = r.finalValue - r.invested;
     const pct = (r.finalValue / r.invested - 1) * 100;
     const cls = g >= 0 ? 'pos' : 'neg';
-    return `<span class="${cls}">${indianFmt(g)} <small>(${pct.toFixed(0)}%)</small></span>`;
+    return `<span class="${cls}">${indianFmt(g)} <small>(${pct.toFixed(1)}%)</small></span>`;
+  };
+
+  // Δ vs SIP
+  const sipFinal = sip.finalValue;
+  const sipXirr  = xirrPct(sip);
+  const fmtDeltaFinal = (r) => {
+    if (r === sip) return '<span style="color:var(--ink-dim)">—</span>';
+    const d = r.finalValue - sipFinal;
+    const cls = d >= 0 ? 'pos' : 'neg';
+    const sign = d >= 0 ? '+' : '';
+    return `<span class="${cls}">${sign}${indianFmt(d)}</span>`;
+  };
+  const fmtDeltaXirr = (r) => {
+    if (r === sip) return '<span style="color:var(--ink-dim)">—</span>';
+    const v = xirrPct(r);
+    if (v == null || sipXirr == null) return '—';
+    const d = v - sipXirr;
+    const cls = d >= 0 ? 'pos' : 'neg';
+    const sign = d >= 0 ? '+' : '';
+    return `<span class="${cls}">${sign}${d.toFixed(2)}%</span>`;
   };
 
   const rows = [
@@ -755,33 +838,62 @@ function renderTable(sip, dip, hyb, periodYears) {
     ['Absolute gain', [sip, dip, hyb].map(fmtGain)],
     ['CAGR',          [sip, dip, hyb].map(fmtCagr)],
     ['XIRR',          [sip, dip, hyb].map(fmtXirr)],
+    ['Interest on idle cash', [sip, dip, hyb].map(r => r.interestEarned > 0 ? indianFmt(r.interestEarned) : '—')],
   ];
 
-  const idleRow = [
-    [sip, dip, hyb].map(r => r.interestEarned > 0 ? indianFmt(r.interestEarned) : '—'),
+  const deltaRows = [
+    ['Δ Final vs SIP', [sip, dip, hyb].map(fmtDeltaFinal)],
+    ['Δ XIRR vs SIP',  [sip, dip, hyb].map(fmtDeltaXirr)],
   ];
-  rows.push(['Interest on idle cash', idleRow[0]]);
 
-  document.getElementById('cmp-body').innerHTML = rows.map(([label, vals]) => `
-    <tr>
+  const renderRow = (label, vals, cls = '') => `
+    <tr${cls ? ` class="${cls}"` : ''}>
       <td>${label}</td>
       <td>${vals[0]}</td>
       <td>${vals[1]}</td>
       <td>${vals[2]}</td>
     </tr>
-  `).join('');
+  `;
+
+  document.getElementById('cmp-body').innerHTML =
+    rows.map(([l, v]) => renderRow(l, v)).join('') +
+    deltaRows.map(([l, v]) => renderRow(l, v, 'delta-row')).join('');
+}
+
+function chartTheme() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  return dark ? {
+    line: 'rgba(236,232,223,0.85)',
+    sip:  'rgba(110,168,254,0.85)',
+    dip:  'rgba(255,122,89,0.9)',
+    hyb:  'rgba(245,185,97,0.95)',
+    fg:   '#ece8df',
+    grid: 'rgba(255,255,255,0.04)',
+    axis: 'rgba(255,255,255,0.15)',
+    muted:'#8b857a',
+    hoverBg: '#1c1c22',
+  } : {
+    line: 'rgba(28,28,31,0.78)',
+    sip:  '#2563eb',
+    dip:  '#ea580c',
+    hyb:  '#b45309',
+    fg:   '#1c1c1f',
+    grid: 'rgba(0,0,0,0.06)',
+    axis: 'rgba(0,0,0,0.18)',
+    muted:'#6e6a64',
+    hoverBg: '#ffffff',
+  };
 }
 
 function renderChart(data, sip, dip, hyb) {
+  const t = chartTheme();
   const xLine = data.map(r => r.date);
   const yLine = data.map(r => r.close);
 
   const buyY = (dates) => dates.map(d => {
-    // find closest data point — dates are already actual data point dates
-    const t = d.getTime();
-    // simple linear search; data is small enough
+    const ts = d.getTime();
     for (let i = 0; i < data.length; i++) {
-      if (data[i].date.getTime() === t) return data[i].close;
+      if (data[i].date.getTime() === ts) return data[i].close;
     }
     return null;
   });
@@ -790,25 +902,25 @@ function renderChart(data, sip, dip, hyb) {
     {
       x: xLine, y: yLine, type: 'scatter', mode: 'lines',
       name: 'Nifty 50 TRI',
-      line: { color: 'rgba(236,232,223,0.85)', width: 1.2 },
+      line: { color: t.line, width: 1.2 },
       hovertemplate: '<b>%{x|%b %Y}</b><br>%{y:,.0f}<extra></extra>',
     },
     {
       x: sip.buyDates, y: buyY(sip.buyDates), type: 'scatter', mode: 'markers',
       name: `SIP buys (${sip.buyDates.length})`,
-      marker: { color: 'rgba(110,168,254,0.85)', size: 5, symbol: 'circle' },
+      marker: { color: t.sip, size: 5, symbol: 'circle' },
       hovertemplate: 'SIP · %{x|%d %b %Y}<extra></extra>',
     },
     {
       x: dip.buyDates, y: buyY(dip.buyDates), type: 'scatter', mode: 'markers',
       name: `Dip buys (${dip.buyDates.length})`,
-      marker: { color: 'rgba(255,122,89,0.9)', size: 6, symbol: 'diamond' },
+      marker: { color: t.dip, size: 6, symbol: 'diamond' },
       hovertemplate: 'Dip · %{x|%d %b %Y}<extra></extra>',
     },
     {
       x: hyb.dipDates, y: buyY(hyb.dipDates), type: 'scatter', mode: 'markers',
       name: `Hybrid dip buys (${hyb.dipBuys})`,
-      marker: { color: 'rgba(245,185,97,0.95)', size: 7, symbol: 'triangle-up' },
+      marker: { color: t.hyb, size: 7, symbol: 'triangle-up' },
       hovertemplate: 'Hybrid-dip · %{x|%d %b %Y}<extra></extra>',
       visible: 'legendonly',
     },
@@ -817,25 +929,23 @@ function renderChart(data, sip, dip, hyb) {
   const layout = {
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor:  'rgba(0,0,0,0)',
-    font: { color: '#ece8df', family: 'IBM Plex Mono, monospace', size: 11 },
+    font: { color: t.fg, family: 'IBM Plex Mono, monospace', size: 11 },
     margin: { l: 60, r: 20, t: 20, b: 50 },
     xaxis: {
-      gridcolor: 'rgba(255,255,255,0.04)', linecolor: 'rgba(255,255,255,0.15)',
-      tickcolor: 'rgba(255,255,255,0.15)', zeroline: false,
+      gridcolor: t.grid, linecolor: t.axis, tickcolor: t.axis, zeroline: false,
     },
     yaxis: {
       type: 'log',
-      gridcolor: 'rgba(255,255,255,0.04)', linecolor: 'rgba(255,255,255,0.15)',
-      tickcolor: 'rgba(255,255,255,0.15)', zeroline: false,
-      title: { text: 'Nifty 50 TRI (log)', font: { size: 11, color: '#8b857a' } },
+      gridcolor: t.grid, linecolor: t.axis, tickcolor: t.axis, zeroline: false,
+      title: { text: 'Nifty 50 TRI (log)', font: { size: 11, color: t.muted } },
     },
     legend: {
       orientation: 'h', y: -0.18, x: 0,
       bgcolor: 'rgba(0,0,0,0)', font: { size: 11 },
     },
     hoverlabel: {
-      bgcolor: '#1c1c22', bordercolor: 'rgba(255,255,255,0.15)',
-      font: { family: 'IBM Plex Mono, monospace', color: '#ece8df' },
+      bgcolor: t.hoverBg, bordercolor: t.axis,
+      font: { family: 'IBM Plex Mono, monospace', color: t.fg },
     },
   };
 
@@ -858,6 +968,7 @@ function recompute() {
   const sip = strategySip(DATA, p);
   const dip = strategyDip(DATA, p);
   const hyb = strategyHybrid(DATA, p);
+  lastResults = { sip, dip, hyb };
   const periodYears = (DATA[DATA.length-1].date - DATA[0].date) / MS_YR;
   renderTable(sip, dip, hyb, periodYears);
   renderChart(DATA, sip, dip, hyb);
@@ -870,7 +981,22 @@ function wire() {
     el.addEventListener('input', debouncedRecompute);
     el.addEventListener('change', debouncedRecompute);
   });
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const cur = document.documentElement.dataset.theme || 'light';
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch(e) {}
+    if (DATA && lastResults.sip) renderChart(DATA, lastResults.sip, lastResults.dip, lastResults.hyb);
+  });
 }
+
+let lastResults = { sip: null, dip: null, hyb: null };
+
+(function initTheme() {
+  let saved = 'light';
+  try { saved = localStorage.getItem('theme') || 'light'; } catch(e) {}
+  document.documentElement.dataset.theme = saved;
+})();
 
 (async () => {
   try {
