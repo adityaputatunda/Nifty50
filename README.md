@@ -4,6 +4,7 @@
 Nifty50/
 ├── README.md              # overview + index of subdirs
 ├── LICENSE
+├── index.html             # Hosts it as an interactive page at https://adityaputatunda.github.io/Nifty50/
 ├── src/
 │   ├── nifty50tri_buy-the-dip.py    # Compares three investment strategies
 │   └── requirements.txt
